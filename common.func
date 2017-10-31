@@ -1,0 +1,293 @@
+#!/bin/sh
+
+#
+#   Script Name: common.func
+#
+#   Copyright (C) 2015 Yayoi
+#       HP: http://mylabo.webcrow.jp/downloads.php
+#
+#   This script defines functions to be used in my build scripts.
+#
+#   This script is free, and is released under the MIT License.
+#   The MIT License can be found at the end of this file.
+#
+#
+
+
+
+# Output message
+func_echo() {
+    # $1 Message
+    # e.g.) func_echo "Complete."
+
+    echo -e "\e[1;36m$1\e[m"
+}
+
+# Output error
+func_error() {
+    # $1 Message
+    # e.g.) func_error "Failed to clone repo."
+
+    echo -e "\e[1;31mError($0): $1\e[0m" 1>&2
+    exit 1
+}
+
+# Get architecture
+func_get_arch() {
+    if [ x"${PROCESSOR_ARCHITECTURE}" = x"x86" ]; then
+        if [ x"${PROCESSOR_ARCHITEW6432}" = x"x86" -o x"${PROCESSOR_ARCHITEW6432}" = x"" ]; then
+            echo "1"
+        else
+            echo "2"
+        fi
+    else
+        echo "2"
+    fi
+}
+
+# Check directories
+func_check_dir() {
+    # $1 Directories
+    # e.g.) func_check_dir /tmp /local
+
+    local dir=
+    for dir in "$@"
+    do
+        if [ ! -d ${dir} ]; then
+            mkdir -p ${dir} || func_error "Failed to create directory(${dir})."
+        fi
+    done
+}
+
+# Set time
+func_settime() {
+    echo `date +%s`
+}
+
+# Get time
+func_gettime() {
+    # $1 Start time
+    # $2 End time
+
+    local start_time="$1"
+    local end_time="$2"
+    local total=$((end_time - start_time))
+    local mm=`expr ${total} / 60`
+    local ss=`expr ${total} % 60`
+
+    echo "${mm}m${ss}s"
+}
+
+# Download
+func_download() {
+    # $1 URL
+    # $2 Destination directory
+    # e.g.) func_download https://hogehoge.com/hoge/trunk /tmp1/hoge
+
+    local source_url="$1"
+    local dir_path="$2"
+    local options="$3"
+
+    local dest_dir=${dir_path%/*}
+    local name=${dir_path%%.*}
+    local ext=${source_url##*.}
+    case "${ext}" in
+        'bz2'|'gz'|'lzma'|'xz')
+            ext=.tar.${ext} ;;
+        *)
+            if [[ "${ext}" == */* ]]; then
+                ext=
+            else
+                ext=.${ext}
+            fi ;;
+    esac
+    cd ${dest_dir}
+    if [ x"${source_url%%/*}" = x"git:" -o x"${ext}" = x".git" ]; then
+        # GIT
+        git clone ${options} ${source_url} ${name} || func_error "Failed to clone ${name} repo."
+        ext=
+    else
+        if [ x"${source_url%%/*}" = x"svn:" ]; then
+            # SVN
+            svn checkout ${source_url} ${name} --username anonymous --password hoge ${options} || func_error "Failed to checkout ${name} repo."
+        else
+            # SVN or WGET
+            svn checkout ${source_url} ${name} --username anonymous --password hoge ${options} 2>/dev/null || \
+            wget --no-check-certificate "${source_url}" -O ${name}${ext} || func_error "Failed to download ${name}${ext}."
+        fi
+    fi
+    if [ x"${ext}" = x".diff" -o x"${ext}" = x".patch" ]; then
+        ext=
+    fi
+    if [ x"${ext}" = x".sh" -o x"${ext}" = x".bash" ]; then
+        ext=
+    fi
+    echo
+    if [ -n "${ext}" ]; then
+        func_unpack ${name}${ext}
+    fi
+}
+
+# Unpack
+func_unpack() {
+    # $1 Archives
+    # e.g.) func_unpack /tmp1/hoge.tar.gz /tmp1/hogehoge.7z
+
+    for archive in "$@"
+    do
+        if [ -e ${archive} ]; then
+            local dest_dir=${archive%/*}
+            local name=${archive%%.*}
+            local ext=${archive##*.}
+            local msg="\e[1;31mError: Failed to unpack.\e[0m"
+            case ${ext} in
+                'bz2'|'gz'|'lzma'|'xz')
+                    ext=.tar.${ext} ;;
+                *)
+                    if [[ "${ext}" == */* ]]; then
+                        ext=
+                    else
+                        ext=.${ext}
+                    fi ;;
+            esac
+            echo "Extracting ${name}${ext}..."
+            cd ${dest_dir}
+            func_check_dir ${name}
+            if [ -n "${ext}" ]; then
+                case ${ext} in
+                    '.7z'|'.zip')
+                        7za x -o${name} ${name}${ext} >/dev/null || echo -e ${msg} 1>&2 ;;
+                    '.tar.bz2')
+                        tar jxf ${name}${ext} -C ${name} --strip-components 1 || echo -e ${msg} 1>&2 ;;
+                    '.tar.gz'|'.tgz')
+                        tar zxf ${name}${ext} -C ${name} --strip-components 1 || echo -e ${msg} 1>&2 ;;
+                    '.tar.lzma'|'.tar.xz')
+                        tar jxf ${name}${ext} -C ${name} --strip-components 1 || echo -e ${msg} 1>&2 ;;
+                    *)
+                        echo "The following type not supported: ${ext}" ;;
+                esac
+                set -u
+                rm -rf ${name}${ext}
+                set +u
+            fi
+        else
+            echo "${archive} not found."
+        fi
+    done
+    echo
+}
+
+# Get revision number by GIT
+func_get_gitrev() {
+    # $1 path of repogitory
+    # e.g.) func_get_gitrev /tmp1/x264
+
+    local dir="$1"
+    cd ${dir} || func_error "Faild to check revision number."
+    local rev=r$(git rev-list origin/master | wc -l | awk '{print $1}')
+    local hash=$(git rev-list origin/master --abbrev-commit | head -n 1)
+
+    echo "${rev}(${hash})"
+}
+
+# Get revision number by SVN
+func_get_svnrev() {
+    # $1 path of repogitory
+    # e.g.) func_get_svnrev /tmp1/x264
+
+    local dir="$1"
+    cd ${dir} || func_error "Faild to check revision number."
+    local rev=r$(svnversion)
+
+    echo "${rev}"
+}
+
+# Apply patches
+func_apply_patch() {
+    # $1 directory
+    # e.g.) func_apply_patch /tmp1/x264
+
+    local dir="$1"
+    cd ${dir}
+    for filepath in `find -name '*.diff' -o -name '*.patch' | sort`
+    do
+        if [ -f ${filepath} ]; then
+            local filename=`basename ${filepath}`
+            if [ x"${filename}" = x"dx90sdk-update-gcc.patch" ]; then
+                # do nothing
+                echo
+            else
+                echo -e "\e[1;36mPatch [ ${filename} ]\e[m"
+                patch -p1 < ${filepath} || error "Failed to patch. (${filename})"
+            fi
+            echo
+        fi
+    done
+}
+
+# Run explorer.exe
+func_open_explorer() {
+    # $1 directory
+    # e.g.) func_open_explorer /tmp1/x264
+
+    local dir="$1"
+    cd ${dir}
+    echo
+    echo "*****************************************************************"
+    echo "  This script paused."
+    echo "  1. Using explorer, move your patches to the source directory."
+    echo "  2. Close explorer."
+    echo "*****************************************************************"
+    echo
+    explorer .
+    echo -n "Press [Enter] key to continue..."
+    read wait
+    echo "OK, restart now."
+    echo
+}
+
+# Delete temp
+func_delete() {
+    # $1 directories
+    # e.g.) func_delete /tmp1/x264 /tmp1/ffmpeg /tmp1/xvidcore
+
+    echo "Delete temporary files..."
+    set -u
+    local dir=
+    for dir in "$@"
+    do
+        local dest_dir=${dir%/*}
+        local name=${dir##*/}
+        cd ${dest_dir}
+        rm -rf ${name}
+    done
+    set +u
+    echo "--> Done"
+    echo
+}
+
+
+
+#
+# The MIT License (MIT)
+#
+# Copyright (c) 2015 Yayoi
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#

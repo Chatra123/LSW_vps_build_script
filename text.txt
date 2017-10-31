@@ -1,0 +1,34 @@
+
+##概要
+	L-smash works VapourSynth の作成
+
+- x86のみ
+- ffmpeg 3.4
+- ffmpegの外部ライブラリはなし
+- L-Smash, L-Smash Worksはgithubから取得
+- L-Smash Works VapourSynthのみ
+	
+##手順
+* http://mylabo.webcrow.jp/から環境構築ファイル MSYS.zip取得
+
+* DownloadList.txtを入れ替えてinstall.bat実行
+   - ダウンロードに失敗する場合、DownloadList.txtを書き換える。
+   - バージョンアップによってURLが変更されているかもしれません。
+
+* msys.bat実行するとhomeフォルダが作成されるのでhomeに残りのスクリプトをいれる。
+   - Build_all.sh
+   - common.func
+   - ffmpeg.sh  lsmash.sh  lsmash_works.sh
+
+* msys.batから sh Build_all.shと入力
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,31 @@
+#-----------------------------
+#  ダウンロードファイル一覧
+#-----------------------------
+# ダウンロードに失敗する場合、以下のURLを最新版に更新してください。
+# バージョンアップによってURLが変更されているかもしれません。
+
+# MSYS/MinGW
+# http://xhmikosr.1f0.de/tools/msys/
+MSYS_MinGW=http://xhmikosr.1f0.de/tools/msys/MSYS_MinGW-w64_GCC_710_x86-x64_Full.7z
+
+# Git
+# https://github.com/git-for-windows/git/releases
+PortableGit.7z=https://github.com/git-for-windows/git/releases/download/v2.11.0.windows.1/PortableGit-2.11.0-32-bit.7z.exe
+
+# YASM
+# http://yasm.tortall.net/Download.html
+yasm=http://www.tortall.net/projects/yasm/releases/yasm-1.3.0-win32.exe
+
+# CMake
+# https://cmake.org/download/
+cmake=https://cmake.org/files/v3.7/cmake-3.7.1-win32-x86.zip
+
+# Mercurial
+# http://tortoisehg.bitbucket.org/download/index.html
+mercurial=http://bitbucket.org/tortoisehg/files/downloads/tortoisehg-4.0.1-x86.msi
+
+# Profile
+profile=http://mylabo.webcrow.jp/data/etc/profile
+
+# msys.bat
+msys=http://mylabo.webcrow.jp/data/etc/msys.bat
